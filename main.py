@@ -1,8 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
+from scipy.interpolate import UnivariateSpline
 
 plt.style.use('Solarize_Light2')
+from scipy.stats import norm
+
+
 
 default_params = {
         "gamma": 0.1,
@@ -14,14 +18,14 @@ default_params = {
         }
 
 
-def sir(y,t,beta, gamma):
+def sir(y,t,beta, gamma, spl):
     S,I,R=y
     #betan = betan*bm_samples[int(np.floor(tn*10))]
     dydt = [
             #(np.sin(t)*0.1+1)
-            -beta*I*S,
-            beta*I*S - gamma*I,
-            gamma*I
+            -beta*spl(t)*I*S,
+            beta*spl(t)*I*S - spl(t)*gamma*I,
+            spl(t)*gamma*I
             ]
     return dydt
 
@@ -39,11 +43,28 @@ def runsir(params, ti, tf, fn):
     gamma, R0, InfDays, y0 = params
     beta = R0/InfDays
     t = np.linspace(ti,tf,1000)
-    sol = odeint(fn, y0, t, args=(beta, gamma))
+    sol = odeint(fn, y0, t, args=(beta, gamma, spl))
     return t, sol
 
 def gen_intervals(tf):
     pass
+
+def gen_noisefn(length, pnts=1000):
+    # Process parameters
+    delta = 0.2
+    dt = 0.1
+
+    x = 1.0
+    xs = np.array([1.0])
+
+    # Iterate to compute the steps of the Brownian motion.
+    for k in range(pnts):
+        xs = np.append(xs, xs[-1] + norm.rvs(scale=delta**2*dt))
+    x = np.linspace(0, length,len(xs))
+    spl = UnivariateSpline(x, xs, k=1, s=0)
+    return x, spl
+
+
 
 def runsim(p, fn):
     gamma = p["gamma"]
@@ -71,6 +92,10 @@ def runsim(p, fn):
         plt.plot(final_t, final_sol[:,2])
         plt.legend(["S","I","R"])
 
+x, spl = gen_noisefn(200) # Arg must be as long as needed
+plt.plot(x, spl(x))
+
 runsim(default_params, sir)
 plt.show()
+
 
