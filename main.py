@@ -7,6 +7,10 @@ plt.style.use('Solarize_Light2')
 from scipy.stats import norm
 from scipy import signal
 
+vaccine_functions = [
+         lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.002*(1/4)
+        ]
+
 
 
 default_params = {
@@ -31,10 +35,9 @@ def sir(y,t,beta, gamma, spl):
             ]
     return dydt
 
-def sirv(y,t,beta, gamma, nu, spl):
+def sirv(y,t,beta, gamma, nu, spl, vaccf):
     S,I,R,V=y
     #betan = betan*bm_samples[int(np.floor(tn*10))]
-    vaccf = lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.002
     
     dydt = [
             #(np.sin(t)*0.1+1)
@@ -46,11 +49,11 @@ def sirv(y,t,beta, gamma, nu, spl):
     return dydt
 
 
-def runsir(params, ti, tf, fn):
+def runsir(params, ti, tf, fn, vaccf):
     gamma, nu, R0, InfDays, y0 = params
     beta = R0/InfDays
     t = np.linspace(ti,tf,1000)
-    sol = odeint(fn, y0, t, args=(beta, gamma, nu, spl))
+    sol = odeint(fn, y0, t, args=(beta, gamma, nu, spl, vaccf))
     return t, sol
 
 def gen_intervals(tf):
@@ -81,6 +84,7 @@ def runsim(p, fn):
     y0 = p["y0"]
     import_packet = p["import_packet"]
     nu = p["nu"]
+    vaccf = lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.002*(1/4)
     
     for R in R0:
         final_t = np.array([])
@@ -88,7 +92,7 @@ def runsim(p, fn):
         y0_int = np.copy(y0)
         for i, interval in enumerate(intervals[:-1]):
             params = [gamma, nu, R, InfDays, y0_int]
-            t, sol = runsir(params,intervals[i], intervals[i+1], fn)
+            t, sol = runsir(params,intervals[i], intervals[i+1], fn, vaccf)
             final_t = np.concatenate((final_t, t)) if final_t.size else t
             final_sol = np.concatenate((final_sol, sol)) if final_sol.size else sol
             y0_int = sol[-1]
@@ -105,9 +109,9 @@ x, spl = gen_noisefn(500) # Arg must be as long as needed
 plt.plot(x, spl(x))
 
 runsim(default_params, sirv)
-vaccf = lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.01
-y = np.linspace(0,500,100000)
-plt.plot(y,vaccf(y))
+#vaccf = lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.01
+#y = np.linspace(0,500,100000)
+#plt.plot(y,vaccf(y))
 plt.show()
 
 
