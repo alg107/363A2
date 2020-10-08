@@ -71,30 +71,34 @@ class Model:
             plt.plot(final_t, final_sol[:,1])
             plt.plot(final_t, final_sol[:,2])
             plt.plot(final_t, final_sol[:,3])
-            plt.legend(["S","I","R","V"])
+            plt.legend(["$S$","$I$","$R$","$V$"])
             plt.figure()
-            plt.plot(final_t, final_sol[:,4])
-            plt.legend(["Cost"])
+            plt.plot(final_t, final_sol[:,4])#self.params["vacc_cost"]
+            plt.legend(["Proportion of pop. vacc"])
         self.print_model_stats(final_t, final_sol)
 
     def print_model_stats(self, final_t, final_sol):
+        vcost = self.params["vacc_cost"]
         max_I_index = np.argmax(final_sol[:,1])
         max_I = final_sol[:,1][max_I_index]
         max_I_day = final_t[max_I_index]
         final_S = final_sol[:,0][-1]
         final_I = final_sol[:,1][-1]
         final_R = final_sol[:,2][-1]
-        y1c = final_sol[:,4][find_nearest_idx(final_t, 365)]
-        y2c = final_sol[:,4][find_nearest_idx(final_t, 365*2)]-y1c
-        y3c = final_sol[:,4][find_nearest_idx(final_t, 365*3)]-y1c-y2c
+        y1c = final_sol[:,4][find_nearest_idx(final_t, 365)]*vcost
+        y2c = final_sol[:,4][find_nearest_idx(final_t, 365*2)]*vcost-y1c
+        y3c = final_sol[:,4][find_nearest_idx(final_t, 365*3)]*vcost-y1c-y2c
          
         # Violated hospital capacity?
         print("Final Recovered/Deceased:", round(final_R, 3))
         print("Max Infected:", round(max_I, 3))
         print("Day of Max Infection:", round(max_I_day))
         print("1st Year Vacc Cost:", f'${round(y1c, 2):,}')
+        print("    ", f'{round(y1c*100/vcost, 2):,}', "% Vaccinated this year")
         print("2nd Year Vacc Cost:", f'${round(y2c, 2):,}')
+        print("    ", f'{round(y2c*100/vcost, 2):,}', "% Vaccinated this year")
         print("3rd Year Vacc Cost:", f'${round(y3c, 2):,}')
+        print("    ", f'{round(y3c*100/vcost, 2):,}', "% Vaccinated this year")
 
     def runsir(self,y0, R, ti, tf, fn, vaccf):
         nu = self.params["nu"]
@@ -134,7 +138,7 @@ def sirv(y,t,beta, gamma, nu, spl, vaccf, vacc_cost):
             beta*spl(t)*I*S - spl(t)*gamma*I,
             spl(t)*gamma*I,
             vaccf(t)*S-nu*V,
-            vacc_cost*vaccf(t)*S
+            vaccf(t)*S
             ]
     return dydt
 
