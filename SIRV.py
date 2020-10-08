@@ -7,18 +7,30 @@ plt.style.use('Solarize_Light2')
 from scipy.stats import norm
 from scipy import signal
 
+def find_nearest_idx(array, value):
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
 vaccine_functions = [
          lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.002*(1/4)
         ]
 
+"""
+Gathering Parameters:
+    - Infected days
+    - R0
+    - Vaccine cost
+    - Vaccine capabilities (How many can we vaccinate)
+"""
+
 default_params = {
-        "gamma": 0.1,
         "nu": (1/(30*4)),
         "InfDays": 10,
         "R0": [1.8],
-        "intervals": [0,50,120,200, 300, 400, 450, 500],
-        "y0": [1.0,0.0,0.0,0.0],
-        "import_packet": 6e-7 # 3 of 5,000,000
+        "intervals": [0,50,120,200, 300, 400, 450, 365*3],
+        "y0": [1.0,0.0,0.0,0.0,0.0],
+        "import_packet": 6e-7, # 3 of 5,000,000
+        "vacc_cost": 10.0*5e6
         }
 
 
@@ -33,9 +45,9 @@ class Model:
     def run(self, vacc=True):
         fn = self.modelfn
         p = self.params
-        gamma = p["gamma"]
         R0 = p["R0"]
         InfDays = p["InfDays"]
+        gamma = 1/InfDays
         intervals = p["intervals"]
         y0 = p["y0"]
         import_packet = p["import_packet"]
@@ -52,7 +64,7 @@ class Model:
                 final_sol = np.concatenate((final_sol, sol)) if final_sol.size else sol
                 y0_int = sol[-1]
                 y0_int[1]+=import_packet # Imported COVID
-                y0_int = y0_int/np.sum(y0_int) #Normalise
+                y0_int[:4] = y0_int[:4]/np.sum(y0_int[:4]) #Normalise
             plt.figure()
             if self.name: plt.title(self.name)
             plt.plot(final_t, final_sol[:,0])
@@ -60,6 +72,9 @@ class Model:
             plt.plot(final_t, final_sol[:,2])
             plt.plot(final_t, final_sol[:,3])
             plt.legend(["S","I","R","V"])
+            plt.figure()
+            plt.plot(final_t, final_sol[:,4])
+            plt.legend(["Cost"])
         self.print_model_stats(final_t, final_sol)
 
     def print_model_stats(self, final_t, final_sol):
@@ -69,17 +84,24 @@ class Model:
         final_S = final_sol[:,0][-1]
         final_I = final_sol[:,1][-1]
         final_R = final_sol[:,2][-1]
+        y1c = final_sol[:,4][find_nearest_idx(final_t, 365)]
+        y2c = final_sol[:,4][find_nearest_idx(final_t, 365*2)]-y1c
+        y3c = final_sol[:,4][find_nearest_idx(final_t, 365*3)]-y1c-y2c
+         
         # Violated hospital capacity?
-        print("Final Recovered/Deceased:", final_R)
-        print("Max Infected:", max_I)
-        print("Day of Max Infection:", max_I_day)
+        print("Final Recovered/Deceased:", round(final_R, 3))
+        print("Max Infected:", round(max_I, 3))
+        print("Day of Max Infection:", round(max_I_day))
+        print("1st Year Vacc Cost:", f'${round(y1c, 2):,}')
+        print("2nd Year Vacc Cost:", f'${round(y2c, 2):,}')
+        print("3rd Year Vacc Cost:", f'${round(y3c, 2):,}')
 
     def runsir(self,y0, R, ti, tf, fn, vaccf):
-        gamma = self.params["gamma"]
         nu = self.params["nu"]
         beta = R/self.params["InfDays"]
+        gamma = 1/self.params["InfDays"]
         t = np.linspace(ti,tf,1000)
-        sol = odeint(fn, y0, t, args=(beta, gamma, nu, self.spl, self.vacc_function))
+        sol = odeint(fn, y0, t, args=(beta, gamma, nu, self.spl, self.vacc_function, self.params["vacc_cost"]))
         return t, sol
 
     def gen_intervals(self, tf):
@@ -88,7 +110,7 @@ class Model:
     def gen_noisefn(self, length, pnts=1000):
         # Process parameters
         delta = 0.2
-        dt = 0.1
+        dt = 0.01
 
         x = 1.0
         xs = np.array([1.0])
@@ -102,23 +124,8 @@ class Model:
         self.spl = spl
 
 
-
-
-
-
-def sir(y,t,beta, gamma, spl):
-    S,I,R=y
-    #betan = betan*bm_samples[int(np.floor(tn*10))]
-    dydt = [
-            #(np.sin(t)*0.1+1)
-            -beta*spl(t)*I*S,
-            beta*spl(t)*I*S - spl(t)*gamma*I,
-            spl(t)*gamma*I
-            ]
-    return dydt
-
-def sirv(y,t,beta, gamma, nu, spl, vaccf):
-    S,I,R,V=y
+def sirv(y,t,beta, gamma, nu, spl, vaccf, vacc_cost):
+    S,I,R,V,C=y
     #betan = betan*bm_samples[int(np.floor(tn*10))]
     
     dydt = [
@@ -126,7 +133,8 @@ def sirv(y,t,beta, gamma, nu, spl, vaccf):
             -beta*spl(t)*I*S -vaccf(t)*S + nu*V,
             beta*spl(t)*I*S - spl(t)*gamma*I,
             spl(t)*gamma*I,
-            vaccf(t)*S-nu*V 
+            vaccf(t)*S-nu*V,
+            vacc_cost*vaccf(t)*S
             ]
     return dydt
 

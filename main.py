@@ -6,8 +6,9 @@ plt.style.use('Solarize_Light2')
 from scipy import signal
 
 
-periodic_vaccf = lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*0.002
-const_vaccf = lambda x: 0.001
+multiplier = 0.003
+periodic_vaccf = lambda x: 0.5*(signal.square(x/(2*np.pi)/3)+1)*multiplier*2
+const_vaccf = lambda x: multiplier
 no_vaccf = lambda x: 0
 
 m1 = SIRV.Model(SIRV.sirv, periodic_vaccf, SIRV.default_params, name="Periodic")
