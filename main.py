@@ -23,4 +23,14 @@ m3 = SIRV.Model(SIRV.sirv, no_vaccf, SIRV.default_params, name="None")
 print("\nNone\n")
 m3.run()
 
+
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+
+ax1.plot(m1.x, [periodic_vaccf(a)/multiplier for a in m1.x])
+ax2.plot(m1.x, [const_vaccf(a)/multiplier for a in m1.x])
+
+#ax1.axes.get_yaxis().set_visible(False)
+#ax2.axes.get_yaxis().set_visible(False)
+#ax.set_ylabel("Arbitrary Units")
+
 plt.show()
