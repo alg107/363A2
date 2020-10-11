@@ -30,7 +30,8 @@ default_params = {
         "intervals": [0,50,120,200, 300, 400, 450, 365*3],
         "y0": [1.0,0.0,0.0,0.0,0.0],
         "import_packet": 6e-7, # 3 of 5,000,000
-        "vacc_cost": 10.0*5e6
+        "vacc_cost": 10.0*5e6,
+        "death_rate": 0.014
         }
 
 
@@ -79,6 +80,7 @@ class Model:
 
     def print_model_stats(self, final_t, final_sol):
         vcost = self.params["vacc_cost"]
+        death_rate = self.params["death_rate"]
         max_I_index = np.argmax(final_sol[:,1])
         max_I = final_sol[:,1][max_I_index]
         max_I_day = final_t[max_I_index]
@@ -90,7 +92,8 @@ class Model:
         y3c = final_sol[:,4][find_nearest_idx(final_t, 365*3)]*vcost-y1c-y2c
          
         # Violated hospital capacity?
-        print("Final Recovered/Deceased:", round(final_R, 3))
+        print("Final Recovered/Deceased:", round(100*final_R, 2), "%")
+        print("Final Deceased:", round(final_R*death_rate*100, 3),"%")
         print("Max Infected:", round(max_I, 3))
         print("Day of Max Infection:", round(max_I_day))
         print("1st Year Vacc Cost:", f'${round(y1c, 2):,}')
