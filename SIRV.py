@@ -3,10 +3,26 @@ import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 from scipy.interpolate import UnivariateSpline
 
-plt.style.use('Solarize_Light2')
+#plt.style.use('Solarize_Light2')
 from scipy.stats import norm
 from scipy import signal
+import matplotlib as mpl
 
+mpl.rcParams['lines.linewidth'] = 4
+
+SMALL_SIZE = 20
+MEDIUM_SIZE = 20
+BIGGER_SIZE = 20
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+#print(plt.rcParams.get('figure.figsize'))
+print(plt.rcParams.get('font.size'))
 def find_nearest_idx(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
@@ -27,11 +43,12 @@ default_params = {
         "nu": (1/(30*4)),
         "InfDays": 10,
         "R0": [1.8],
-        "intervals": [0,50,120,200, 300, 400, 450, 365*3],
+        "intervals": [0,50,120,200, 300, 400, 450, 365*2],
         "y0": [1.0,0.0,0.0,0.0,0.0],
         "import_packet": 6e-7, # 3 of 5,000,000
-        "vacc_cost": 10.0*5e6,
-        "death_rate": 0.014
+        "vacc_cost": 30.0*5e6,
+        "death_rate": 0.014,
+        "vacc_year": 0.8
         }
 
 
@@ -66,16 +83,22 @@ class Model:
                 y0_int = sol[-1]
                 y0_int[1]+=import_packet # Imported COVID
                 y0_int[:4] = y0_int[:4]/np.sum(y0_int[:4]) #Normalise
-            plt.figure()
-            if self.name: plt.title(self.name)
+            plt.figure(figsize=(8,6))
+            #if self.name: plt.title(self.name)
             plt.plot(final_t, final_sol[:,0])
             plt.plot(final_t, final_sol[:,1])
             plt.plot(final_t, final_sol[:,2])
             plt.plot(final_t, final_sol[:,3])
+            plt.xlabel("Time (Days)")
+            plt.ylabel("Population (Proportion)")
             plt.legend(["$S$","$I$","$R$","$V$"])
-            plt.figure()
-            plt.plot(final_t, final_sol[:,4])#self.params["vacc_cost"]
-            plt.legend(["Proportion of pop. vacc"])
+            plt.savefig("Figs/SIRV_"+self.name+".pdf")
+            plt.figure(figsize=(8*3/2,6))
+            plt.plot(final_t, final_sol[:,4]*self.params["vacc_cost"]*1e-6)
+            plt.xlabel("Time (Days)")
+            plt.ylabel("Vaccine Spending (million NZD)")
+            plt.savefig("Figs/Spending_"+self.name+".pdf")
+            #plt.legend(["Proportion of pop. vacc"])
         self.print_model_stats(final_t, final_sol)
 
     def print_model_stats(self, final_t, final_sol):
